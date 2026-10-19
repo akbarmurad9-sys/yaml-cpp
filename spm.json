@@ -1,0 +1,11 @@
+{
+  "name": "yaml-cpp",
+  "version": "0.9.0-lab",
+  "dependencies": [
+    {
+      "name": "test-fixtures",
+      "version": "1.0.0",
+      "sha256": "8ca6ff368bd889e8b0b5a8f2905067795e42820635e3458bf5276f29b72e390d"
+    }
+  ]
+}
