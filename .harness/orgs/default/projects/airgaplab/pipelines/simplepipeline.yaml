@@ -1,0 +1,107 @@
+pipeline:
+  name: simple-pipeline
+  identifier: simplepipeline
+  projectIdentifier: airgaplab
+  orgIdentifier: default
+  tags: {}
+  properties:
+    ci:
+      codebase:
+        connectorRef: github_yamlcpp
+        build: <+input>
+  stages:
+    - stage:
+        name: build-linux
+        identifier: buildlinux
+        description: ""
+        type: CI
+        spec:
+          cloneCodebase: true
+          caching:
+            enabled: true
+            override: true
+          buildIntelligence:
+            enabled: true
+          infrastructure:
+            type: KubernetesDirect
+            spec:
+              connectorRef: k8s_pool_a
+              namespace: builds
+              automountServiceAccountToken: true
+              nodeSelector: {}
+              os: Linux
+          execution:
+            steps:
+              - step:
+                  type: RestoreCacheS3
+                  name: restore spm cache
+                  identifier: restore_spm_cache
+                  spec:
+                    connectorRef: minio_s3
+                    region: us-east-1
+                    bucket: build-cache
+                    key: spm-{{ checksum "spm.json" }}
+                    endpoint: http://minio.minio.svc.cluster.local:9000
+                    archiveFormat: Tar
+                    pathStyle: true
+              - step:
+                  type: Run
+                  name: resolve dependencies
+                  identifier: resolve_dependencies
+                  spec:
+                    connectorRef: dockerhub_anon
+                    image: akbarmurad9/cpp-builder:1.0
+                    shell: Sh
+                    command: python3 tools/spm.py resolve
+                    envVariables:
+                      MC_HOST_minio: http://ci-pool-a:<+secrets.getValue("minio_ci_secret")>@minio.minio.svc.cluster.local:9000
+              - step:
+                  type: SaveCacheS3
+                  name: save spm cache
+                  identifier: save_spm_cache
+                  spec:
+                    connectorRef: minio_s3
+                    region: us-east-1
+                    bucket: build-cache
+                    key: spm-{{ checksum "spm.json" }}
+                    sourcePaths:
+                      - spm_packages
+                    endpoint: http://minio.minio.svc.cluster.local:9000
+                    archiveFormat: Tar
+                    pathStyle: true
+              - step:
+                  type: Run
+                  name: build
+                  identifier: build
+                  spec:
+                    connectorRef: dockerhub_anon
+                    image: akbarmurad9/cpp-builder:1.0
+                    shell: Sh
+                    command: |-
+                      START=$(date +%s)
+                      cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
+                            -DYAML_CPP_BUILD_TESTS=ON -DYAML_CPP_BUILD_TOOLS=OFF
+                      cmake --build build --parallel 2
+                      echo "BUILD SECONDS: $(( $(date +%s) - START ))"
+                    resources:
+                      limits:
+                        memory: 2Gi
+                        cpu: "2"
+              - step:
+                  type: Run
+                  name: unit tests
+                  identifier: unit_tests
+                  spec:
+                    connectorRef: dockerhub_anon
+                    image: akbarmurad9/cpp-builder:1.0
+                    shell: Sh
+                    command: |-
+                      BIN=$(find build -type f -name yaml-cpp-tests | head -1)
+                      [ -x "$BIN" ] || { echo "test binary not found"; exit 1; }
+                      mkdir -p reports
+                      export GTEST_TOTAL_SHARDS=<+strategy.iterations>
+                      export GTEST_SHARD_INDEX=<+strategy.iteration>
+                      echo "running shard $GTEST_SHARD_INDEX of $GTEST_TOTAL_SHARDS"
+                      "$BIN" --gtest_output=xml:reports/gtest-shard-$GTEST_SHARD_INDEX.xml
+                  strategy:
+                    parallelism: 2
