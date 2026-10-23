@@ -103,5 +103,26 @@ pipeline:
                       export GTEST_SHARD_INDEX=<+strategy.iteration>
                       echo "running shard $GTEST_SHARD_INDEX of $GTEST_TOTAL_SHARDS"
                       "$BIN" --gtest_output=xml:reports/gtest-shard-$GTEST_SHARD_INDEX.xml
+                    reports:
+                      type: JUnit
+                      spec:
+                        paths:
+                          - reports/gtest-shard-*.xml
                   strategy:
                     parallelism: 2
+              - step:
+                  type: Run
+                  name: publish test results
+                  identifier: publish_test_results
+                  spec:
+                    connectorRef: dockerhub_anon
+                    image: akbarmurad9/cpp-builder:1.0
+                    shell: Sh
+                    command: python3 tools/gtest_to_junit.py reports/gtest-shard-*.xml -o reports/junit.xml
+                    reports:
+                      type: JUnit
+                      spec:
+                        paths:
+                          - reports/junit.xml
+                  when:
+                    stageStatus: All
