@@ -103,11 +103,6 @@ pipeline:
                       export GTEST_SHARD_INDEX=<+strategy.iteration>
                       echo "running shard $GTEST_SHARD_INDEX of $GTEST_TOTAL_SHARDS"
                       "$BIN" --gtest_output=xml:reports/gtest-shard-$GTEST_SHARD_INDEX.xml
-                    reports:
-                      type: JUnit
-                      spec:
-                        paths:
-                          - reports/gtest-shard-*.xml
                   strategy:
                     parallelism: 2
               - step:
