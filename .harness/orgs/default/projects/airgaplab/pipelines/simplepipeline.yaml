@@ -121,3 +121,15 @@ pipeline:
                           - reports/junit.xml
                   when:
                     stageStatus: All
+  notificationRules:
+    - name: build-failures
+      identifier: buildfailures
+      pipelineEvents:
+        - type: PipelineFailed
+      notificationMethod:
+        type: Email
+        spec:
+          userGroups: []
+          recipients:
+            - akbarmurad9@gmail.com
+      enabled: true
