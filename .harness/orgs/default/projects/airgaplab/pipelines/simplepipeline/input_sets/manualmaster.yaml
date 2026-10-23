@@ -1,0 +1,14 @@
+inputSet:
+  name: manual-master
+  identifier: manualmaster
+  orgIdentifier: default
+  projectIdentifier: airgaplab
+  pipeline:
+    identifier: simplepipeline
+    properties:
+      ci:
+        codebase:
+          build:
+            type: branch
+            spec:
+              branch: master
