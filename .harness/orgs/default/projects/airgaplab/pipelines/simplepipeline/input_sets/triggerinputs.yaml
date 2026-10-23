@@ -1,0 +1,14 @@
+inputSet:
+  name: trigger-inputs
+  identifier: triggerinputs
+  orgIdentifier: default
+  projectIdentifier: airgaplab
+  pipeline:
+    identifier: simplepipeline
+    properties:
+      ci:
+        codebase:
+          build:
+            type: branch
+            spec:
+              branch: <+trigger.branch>
